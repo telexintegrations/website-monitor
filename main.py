@@ -1,7 +1,6 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
+from fastapi import FastAPI, BackgroundTasks, Request
 import httpx
 import json
-import asyncio
 import subprocess
 from pydantic import BaseModel
 from typing import List
@@ -14,21 +13,47 @@ def get_integration_json(request: Request):
     base_url = str(request.base_url).rstrip("/")
     return {
         "data": {
-            "descriptions": {
-                "app_name": "Website Monitor",
-                "app_description": "Monitors website performance using Lighthouse",
-                "app_url": base_url,
-                "app_logo": "https://i.imgur.com/lZqvffp.png",
-                "background_color": "#ffffff"
-            },
-            "integration_type": "interval",
-            "settings": [
-                {"label": "site-1", "type": "text", "required": True, "default": ""},
-                {"label": "site-2", "type": "text", "required": False, "default": ""},
-                {"label": "interval", "type": "text", "required": True, "default": "* * * * *"}
-            ],
-            "tick_url": f"{base_url}/tick"
-        }
+    "date": {
+      "created_at": "2025-02-19",
+      "updated_at": "2025-02-19"
+    },
+    "descriptions": {
+      "app_name": "Website Monitor",
+      "app_description": "Monitors website performance using Lighthouse",
+      "app_logo": "https://i.imgur.com/lZqvffp.png",
+      "app_url": base_url,
+      "background_color": "#fff"
+    },
+    "is_active": True,
+    "integration_type": "interval",
+    "key_features": [
+      "Checks website load speed using httpx (measures response time).", 
+      "Runs Lighthouse audits to analyze performance and get key metrics like:\n\n    Performance Score\n    First Contentful Paint (FCP)\n    Speed Index\n    Time to Interactive"
+    ],
+    "author": "Lamido",
+    "settings": [
+      {
+        "label": "site-1",
+        "type": "text",
+        "required": True,
+        "default": ""
+      },
+      {
+        "label": "site-2",
+        "type": "text",
+        "required": False,
+        "default": ""
+      },
+      {
+        "label": "interval",
+        "type": "text",
+        "required": True,
+        "default": "* * * * *"
+      }
+    ],
+    "target_url": f"{base_url}/integration.json",
+    "tick_url": f"{base_url}/tick"
+  }
     }
 
 class Setting(BaseModel):

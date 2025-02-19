@@ -25,6 +25,7 @@ def get_integration_json(request: Request):
       "background_color": "#fff"
     },
     "is_active": True,
+    "integration_category": "Website Uptime",
     "integration_type": "interval",
     "key_features": [
       "Checks website load speed using httpx (measures response time).", 

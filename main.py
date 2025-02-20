@@ -1,4 +1,5 @@
 from fastapi import FastAPI, BackgroundTasks, Request
+from fastapi.middleware.cors import CORSMiddleware
 import httpx
 import json
 import subprocess
@@ -6,6 +7,16 @@ from pydantic import BaseModel
 from typing import List
 
 app = FastAPI()
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  
+    allow_credentials=True, 
+    allow_methods=["*"],  
+    allow_headers=["*"],  
+)
+
 
 @app.get("/integration.json")
 def get_integration_json(request: Request):
@@ -21,7 +32,7 @@ def get_integration_json(request: Request):
       "app_name": "Website Monitor",
       "app_description": "Monitors website performance using Lighthouse",
       "app_logo": "https://i.imgur.com/lZqvffp.png",
-      "app_url": base_url,
+      "app_url": f"{base_url}/integration.json",
       "background_color": "#fff"
     },
     "is_active": True,

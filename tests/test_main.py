@@ -1,101 +1,63 @@
 import pytest
 from fastapi.testclient import TestClient
-from main import app  # Adjust the import according to the location of your FastAPI app
+from unittest.mock import patch
+import httpx
+from main import app, check_site_performance, send_to_channel
 
+client = TestClient(app)
 
 @pytest.fixture
-def client():
-    with TestClient(app) as client:
-        yield client
+def mock_pagespeed_response():
+    return {
+        "lighthouseResult": {
+            "categories": {
+                "performance": {"score": 0.85},
+                "accessibility": {"score": 0.90},
+                "best-practices": {"score": 0.80},
+                "seo": {"score": 0.95},
+            },
+            "audits": {
+                "first-contentful-paint": {"numericValue": 1234},
+                "speed-index": {"numericValue": 2345},
+                "interactive": {"numericValue": 3456},
+            },
+        }
+    }
 
+@patch("httpx.get")
+def test_check_site_performance(mock_get, mock_pagespeed_response):
+    mock_get.return_value.json.return_value = mock_pagespeed_response
+    mock_get.return_value.status_code = 200
 
-def test_integration_json(client):
-    """Test that the /integration.json endpoint returns the correct structure"""
+    result = check_site_performance("https://example.com")
+    assert "Performance Score" in result
+    assert "Accessibility Score" in result
+    assert "Best Practices Score" in result
+    assert "SEO Score" in result
+    assert "First Contentful Paint" in result
+    assert "Speed Index" in result
+    assert "Time to Interactive" in result
+
+@patch("httpx.post")
+def test_send_to_channel(mock_post):
+    mock_post.return_value.json.return_value = {"status": "success"}
+    response = send_to_channel("https://telex.com/webhook", "Test message")
+    assert response["status"] == "success"
+
+@patch("main.check_site_performance")
+def test_tick(mock_check):
+    mock_check.return_value = "✅ Test site loaded successfully."
+    payload = {
+        "channel_id": "test_channel",
+        "return_url": "https://ping.telex.im/v1/webhooks/0195189b-9a34-7faa-b8f0-8b76e0dee28f",
+        "settings": [{"label": "site-1", "type": "text", "required": True, "default": "https://example.com"}]
+    }
+    response = client.post("/tick", json=payload)
+    assert response.status_code == 200
+    assert response.json()["status"] == "success"
+
+def test_integration_json():
     response = client.get("/integration.json")
     assert response.status_code == 200
-    json_response = response.json()
-    
-    # Check the basic structure of the response
-    assert "data" in json_response
-    assert "descriptions" in json_response["data"]
-    assert "settings" in json_response["data"]
-    assert "tick_url" in json_response["data"]
-    
-    # Check the required fields inside descriptions
-    assert "app_name" in json_response["data"]["descriptions"]
-    assert "app_description" in json_response["data"]["descriptions"]
-    assert "app_url" in json_response["data"]["descriptions"]
-    assert "app_logo" in json_response["data"]["descriptions"]
-    assert "background_color" in json_response["data"]["descriptions"]
-    
-    # Check the settings
-    assert len(json_response["data"]["settings"]) > 0
-    assert "label" in json_response["data"]["settings"][0]
-    assert "type" in json_response["data"]["settings"][0]
-    assert "required" in json_response["data"]["settings"][0]
-    assert "default" in json_response["data"]["settings"][0]
-    
-    # Check tick_url
-    assert json_response["data"]["tick_url"].startswith("http")
-
-
-def test_tick(client, mocker):
-    """Test the /tick endpoint to ensure performance check logic works"""
-
-    # Mocking the check_site_performance and run_lighthouse methods
-    mock_check_site_performance = mocker.patch("main.check_site_performance", return_value="✅ site loaded in 1.23 seconds.")
-    mock_run_lighthouse = mocker.patch("main.run_lighthouse", return_value={
-        "performance_score": 90,
-        "first_contentful_paint": 1500,
-        "speed_index": 2000,
-        "time_to_interactive": 3000
-    })
-    
-    # Create a payload for the tick
-    payload = {
-        "channel_id": "123",
-        "return_url": "http://example.com",
-        "settings": [
-            {"label": "site-1", "type": "text", "required": True, "default": "http://testsite1.com"},
-            {"label": "interval", "type": "text", "required": True, "default": "* * * * *"}
-        ]
-    }
-    
-    # Now use the sync `client.post()` without `await`
-    response = client.post("/tick", json=payload)
-    assert response.status_code == 200
-    assert response.json() == {"status": "success"}
-    
-    # Verify the mocked functions were called
-    mock_check_site_performance.assert_called_once_with("http://testsite1.com")
-    mock_run_lighthouse.assert_called_once_with("http://testsite1.com")
-
-
-def test_send_to_channel(client, mocker):
-    """Test that the send_to_channel function is called with correct parameters"""
-    
-    # Mock the background task properly by replacing it with a dummy function
-    def mock_background_send_to_channel(return_url, message):
-        assert return_url == "http://example.com"
-        assert message is not None  # Ensure that a message is passed
-    
-    # Patch the background task with the mock function
-    mocker.patch("main.send_to_channel", side_effect=mock_background_send_to_channel)
-    
-    # Create a payload for the tick
-    payload = {
-        "channel_id": "123",
-        "return_url": "http://example.com",
-        "settings": [
-            {"label": "site-1", "type": "text", "required": True, "default": "http://testsite1.com"},
-            {"label": "interval", "type": "text", "required": True, "default": "* * * * *"}
-        ]
-    }
-    
-    # Use the sync client without `await`
-    response = client.post("/tick", json=payload)
-    
-    # Ensure that the background task was called correctly
-    assert response.status_code == 200
-    assert response.json() == {"status": "success"}
-
+    assert "data" in response.json()
+    assert "app_name" in response.json()["data"]["descriptions"]

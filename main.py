@@ -1,13 +1,12 @@
+import os
 from fastapi import FastAPI, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 import httpx
-import json
-import subprocess
 from pydantic import BaseModel
 from typing import List
+import time
 
 app = FastAPI()
-
 
 app.add_middleware(
     CORSMiddleware,
@@ -17,55 +16,58 @@ app.add_middleware(
     allow_headers=["*"],  
 )
 
+PAGESPEED_API_KEY = os.getenv("PAGESPEED_API_KEY")
+PAGESPEED_API_URL = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed"
 
 @app.get("/integration.json")
 def get_integration_json(request: Request):
-    """Telex's required json route that defines the integration """
+    """Telex's required JSON route that defines the integration."""
     base_url = str(request.base_url).rstrip("/")
     return {
         "data": {
-    "date": {
-      "created_at": "2025-02-19",
-      "updated_at": "2025-02-19"
-    },
-    "descriptions": {
-      "app_name": "Website Monitor",
-      "app_description": "Monitors website performance using Lighthouse",
-      "app_logo": "https://i.imgur.com/lZqvffp.png",
-      "app_url": f"{base_url}/integration.json",
-      "background_color": "#fff"
-    },
-    "is_active": True,
-    "integration_category": "Website Uptime",
-    "integration_type": "interval",
-    "key_features": [
-      "Checks website load speed using httpx (measures response time).", 
-      "Runs Lighthouse audits to analyze performance and get key metrics like:\n\n    Performance Score\n    First Contentful Paint (FCP)\n    Speed Index\n    Time to Interactive"
-    ],
-    "author": "Lamido",
-    "settings": [
-      {
-        "label": "site-1",
-        "type": "text",
-        "required": True,
-        "default": ""
-      },
-      {
-        "label": "site-2",
-        "type": "text",
-        "required": False,
-        "default": ""
-      },
-      {
-        "label": "interval",
-        "type": "text",
-        "required": True,
-        "default": "* * * * *"
-      }
-    ],
-    "target_url": f"{base_url}/integration.json",
-    "tick_url": f"{base_url}/tick"
-  }
+            "date": {
+                "created_at": "2025-02-19",
+                "updated_at": "2025-02-19"
+            },
+            "descriptions": {
+                "app_name": "Website Monitor",
+                "app_description": "Monitors website performance using Google PageSpeed API",
+                "app_logo": f"{base_url}/static/app_logo.png",
+                "app_url": f"{base_url}/integration.json",
+                "background_color": "#fff"
+            },
+            "is_active": True,
+            "integration_category": "Website Uptime",
+            "integration_type": "interval",
+            "key_features": [
+                "Analyzes website performance using Google PageSpeed API.",
+                "Retrieves key performance metrics such as Performance Score, First Contentful Paint (FCP), Speed Index, and Time to Interactive (TTI).",
+                "Provides insights beyond simple load time by evaluating rendering and interactivity metrics."
+            ],
+            "author": "Lamido",
+            "settings": [
+                {
+                    "label": "site-1",
+                    "type": "text",
+                    "required": True,
+                    "default": ""
+                },
+                {
+                    "label": "site-2",
+                    "type": "text",
+                    "required": False,
+                    "default": ""
+                },
+                {
+                    "label": "interval",
+                    "type": "text",
+                    "required": True,
+                    "default": "0 12 * * *"
+                }
+            ],
+            "target_url": f"{base_url}/integration.json",
+            "tick_url": f"{base_url}/tick"
+        }
     }
 
 class Setting(BaseModel):
@@ -79,62 +81,66 @@ class MonitorPayload(BaseModel):
     return_url: str
     settings: List[Setting]
 
-async def check_site_performance(site: str) -> str:
-    """this checks the load speed of the website."""
+def check_site_performance(site: str) -> str:
+    """Checks website performance using Google PageSpeed API, focusing on rendering and interactivity."""
+    params = {
+        "url": site,
+        "key": PAGESPEED_API_KEY,
+        "strategy": "desktop",
+        "category": ["performance", "accessibility", "best-practices", "seo"]
+    }
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(site, timeout=10)
-            load_time = response.elapsed.total_seconds()
-            return f"✅ {site} loaded in {load_time:.2f} seconds."
+        response = httpx.get(PAGESPEED_API_URL, params=params, timeout=30)
+        data = response.json()
+        
+        if "lighthouseResult" not in data:
+            return f"❌ Failed to analyze {site}: {data.get('error', {}).get('message', 'Unknown error')}"
+        
+        result = data["lighthouseResult"]
+        performance_score = result["categories"]["performance"]["score"] * 100
+        accessibility_score = result["categories"]["accessibility"]["score"] * 100
+        best_practices_score = result["categories"]["best-practices"]["score"] * 100
+        seo_score = result["categories"]["seo"]["score"] * 100
+        fcp = result["audits"]["first-contentful-paint"]["numericValue"]
+        speed_index = result["audits"]["speed-index"]["numericValue"]
+        tti = result["audits"]["interactive"]["numericValue"]
+        
+        return (f"✅ {site} Analysis:\n"
+                f"- Performance Score: {performance_score}\n"
+                f"- Accessibility Score: {accessibility_score}\n"
+                f"- Best Practices Score: {best_practices_score}\n"
+                f"- SEO Score: {seo_score}\n"
+                f"- First Contentful Paint (FCP): {fcp} ms\n"
+                f"- Speed Index: {speed_index} ms\n"
+                f"- Time to Interactive (TTI): {tti} ms\n"
+                f"\n(Note: Load time is just one factor; these metrics provide deeper insights into the user experience.)")
+    except httpx.TimeoutException:
+        return f"❌ Error analyzing {site}: The request timed out. Try again later."
     except Exception as e:
-        return f"❌ Failed to load {site}: {str(e)}"
+        return f"❌ Error analyzing {site}: {str(e)}"
 
-def run_lighthouse(url: str):
-    """Runs lighthouse headlessly to get the report for the websites"""
-    command = f"lighthouse {url} --quiet --chrome-flags='--headless' --output=json"
-    
-    result = subprocess.run(command, shell=True, capture_output=True, text=True, encoding='utf-8')
-    # print(result)
-    try:
-        data = json.loads(result.stdout)
-        return {
-            "performance_score": data["categories"]["performance"]["score"] * 100,
-            "first_contentful_paint": data["audits"]["first-contentful-paint"]["numericValue"],
-            "speed_index": data["audits"]["speed-index"]["numericValue"],
-            "time_to_interactive": data["audits"]["interactive"]["numericValue"],
-        }
-    except json.JSONDecodeError:
-        return {"error": "Failed to parse Lighthouse output"}
-
-async def send_to_channel(return_url: str, message: str):
-    """This function sends the performance report to telex"""
+def send_to_channel(return_url: str, message: str):
+    """Sends the performance report to Telex and returns JSON response."""
     data = {
         "message": message,
         "username": "Website Monitor",
         "event_name": "Performance Check",
-        "status": "error"
+        "status": "Success"
     }
-    async with httpx.AsyncClient() as client:
-        await client.post(return_url, json=data)
-
+    response = httpx.post(return_url, json=data)
+    return response.json()
 
 @app.post("/tick")
-async def tick(payload: MonitorPayload, background_tasks: BackgroundTasks):
+def tick(payload: MonitorPayload, background_tasks: BackgroundTasks):
     """Telex calls this route to monitor website performance."""
     sites = [s.default for s in payload.settings if s.label.startswith("site") and s.default]
-
     results = []
     for site in sites:
-        load_time_result = await check_site_performance(site)
-        lighthouse_result = run_lighthouse(site)
-        if "error" in lighthouse_result:
-            full_result = f"{load_time_result}\n❌ Lighthouse failed: {lighthouse_result['error']}"
-        else:
-            full_result = f"{load_time_result}\n📊 Lighthouse:\n- Performance score:{lighthouse_result['performance_score']}\n- First contentful paint: {lighthouse_result['first_contentful_paint']} ms\n- Speed Index: {lighthouse_result['speed_index']} ms\n- Time to interactive: {lighthouse_result['time_to_interactive']} ms"
-        results.append(full_result)
-
+        result = check_site_performance(site)
+        results.append(result)
+        time.sleep(5)  # Delay to avoid hitting API rate limits
+    
     message = "\n\n".join(results)
     background_tasks.add_task(send_to_channel, payload.return_url, message)
-    # print(message)
-
+    print(message)
     return {"status": "success"}

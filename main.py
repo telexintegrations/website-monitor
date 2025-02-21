@@ -16,7 +16,8 @@ app.add_middleware(
     allow_headers=["*"],  
 )
 
-PAGESPEED_API_KEY = os.getenv("PAGESPEED_API_KEY")
+# PAGESPEED_API_KEY = os.getenv("PAGESPEED_API_KEY")
+PAGESPEED_API_KEY = "AIzaSyD6g9hkl11tS2L_kKKsTG6nwobnUsA0h1k"
 PAGESPEED_API_URL = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed"
 
 @app.get("/integration.json")
@@ -121,13 +122,29 @@ def check_site_performance(site: str) -> str:
 
 def send_to_channel(return_url: str, message: str):
     """Sends the performance report to Telex and returns JSON response."""
+    print(return_url)
     data = {
         "message": message,
         "username": "Website Monitor",
         "event_name": "Performance Check",
-        "status": "Success"
+        "status": "success"
     }
     response = httpx.post(return_url, json=data)
+    # payload = {
+    # "event_name": "string",
+    # "message": "python post",
+    # "status": "success",
+    # "username": "collins"
+    # }
+    # response = requests.post(
+    # url,
+    # json=payload,
+    # headers={
+    #     "Accept": "application/json",
+    #     "Content-Type": "application/json"
+    # }
+    # )
+    print(response.json())
     return response.json()
 
 @app.post("/tick")
@@ -138,9 +155,10 @@ def tick(payload: MonitorPayload, background_tasks: BackgroundTasks):
     for site in sites:
         result = check_site_performance(site)
         results.append(result)
-        time.sleep(5)  # Delay to avoid hitting API rate limits
+        time.sleep(2)  # Delay to avoid hitting API rate limits
     
     message = "\n\n".join(results)
     background_tasks.add_task(send_to_channel, payload.return_url, message)
     print(message)
     return {"status": "success"}
+

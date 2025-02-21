@@ -66,9 +66,49 @@ docker run -p 8000:8000 website-monitor
 
 Or deploy on AWS EC2, Render, or other cloud providers following best practices.
 
-## Telex Integration
+## API Endpoints
+### **1. Get Integration JSON**
+Returns the JSON required by Telex.
+```sh
+GET https://website-monitor-kokv.onrender.com/integration.json
+```
 
-To integrate with Telex, configure the webhook URL and ensure the API can communicate with the Telex service.
+### **2. Trigger a Website Check (Telex Tick Event)**
+Telex calls this endpoint to perform a scheduled website performance check.
+```sh
+POST https://website-monitor-kokv.onrender.com/tick
+```
+#### **Example Payload**
+```json
+{
+    "channel_id": "test_channel",
+    "return_url": "https://telex.com/webhook",
+    "settings": [
+        { "label": "site-1", "type": "text", "required": true, "default": "https://example.com" }
+    ]
+}
+```
+
+#### **Response**
+```json
+{
+    "status": "success"
+}
+```
+
+## Use Cases
+### **1. Monitoring a Website’s Performance in Telex**
+- Users integrate this service into **Telex** to receive scheduled reports.
+- The bot sends insights on **load speed, SEO, and accessibility**.
+
+### **2. Checking Performance for Multiple Websites**
+- The integration supports checking multiple websites in one request.
+- Useful for monitoring competitors or various company websites.
+
+### **3. Getting Automated Alerts on Website Speed Drops**
+- If a website's speed drops significantly, Telex can notify admins.
+- Helps in proactively optimizing website performance.
+
 
 ### Example Telex Message Output
 

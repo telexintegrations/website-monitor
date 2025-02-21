@@ -2,7 +2,9 @@ import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch
 import httpx
-from main import app, check_site_performance, send_to_channel
+from app.main import app
+from app.core.utils import check_site_performance
+from app.crud import send_to_channel
 
 client = TestClient(app)
 
@@ -44,7 +46,7 @@ def test_send_to_channel(mock_post):
     response = send_to_channel("https://telex.com/webhook", "Test message")
     assert response["status"] == "success"
 
-@patch("main.check_site_performance")
+@patch("app.core.utils.check_site_performance")
 def test_tick(mock_check):
     mock_check.return_value = "✅ Test site loaded successfully."
     payload = {

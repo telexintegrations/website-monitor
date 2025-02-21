@@ -111,8 +111,12 @@ POST https://website-monitor-kokv.onrender.com/tick
 
 
 ### Example Telex Message Output
-
 (Screenshot of integration in Telex here)
+![image](https://github.com/user-attachments/assets/af6710d8-633d-4ea9-b53f-b78b4c192f09)
+![image](https://github.com/user-attachments/assets/e60c65df-c673-4cc4-ae9e-d9bb6b53f70c)
+
+
+
 
 ## License
 

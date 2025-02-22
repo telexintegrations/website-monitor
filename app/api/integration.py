@@ -14,7 +14,7 @@ def get_integration_json(request: Request):
             },
             "descriptions": {
                 "app_name": "Website Monitor",
-                "app_description": "Monitors website performance using Google PageSpeed API",
+                "app_description": "Monitors a website performance score, FCP, TTI and more.",
                 "app_logo": f"{base_url}/static/app_logo.png",
                 "app_url": f"{base_url}/integration.json",
                 "background_color": "#fff"

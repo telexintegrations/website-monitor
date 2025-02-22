@@ -41,3 +41,10 @@ def check_site_performance(site: str) -> str:
         return f"❌ Error analyzing {site}: The request timed out. Try again later."
     except Exception as e:
         return f"❌ Error analyzing {site}: {str(e)}"
+
+
+def ensure_https(url: str) -> str:
+    """Ensures the URL starts with 'https://'"""
+    if not url.startswith(('http://', 'https://')):
+        url = 'https://' + url
+    return url

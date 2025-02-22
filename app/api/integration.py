@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Request
 from app.schemas import Setting
+from datetime import datetime, timezone
 
 router = APIRouter()
 
@@ -10,7 +11,7 @@ def get_integration_json(request: Request):
         "data": {
             "date": {
                 "created_at": "2025-02-19",
-                "updated_at": "2025-02-19"
+                "updated_at": datetime.now(timezone.utc).strftime('%d/%m/%Y')
             },
             "descriptions": {
                 "app_name": "Website Monitor",
@@ -28,6 +29,7 @@ def get_integration_json(request: Request):
                 "Provides insights beyond simple load time by evaluating rendering and interactivity metrics."
             ],
             "author": "Lamido",
+            "website": base_url,
             "settings": [
                 {"label": "site-1", "type": "text", "required": True, "default": ""},
                 {"label": "site-2", "type": "text", "required": False, "default": ""},
